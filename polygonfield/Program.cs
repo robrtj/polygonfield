@@ -55,7 +55,7 @@ namespace polygonfield
                 file.WriteLine("NIE JEST PROSTY");
             }
 
-            double field = polygonField(polygon);
+            double field = polygonField(polygon, n);
             file.WriteLine(field);
 
             b = isPointInsidePolygon(polygon, point);
@@ -76,9 +76,17 @@ namespace polygonfield
             return false;
         }
 
-        private static double polygonField(double[,] polygon)
+        private static double polygonField(double[,] polygon, int n)
         {
-            return 0.1;
+            double field = 0;
+            int j = n - 1;
+            for (int i = 0; i < n; i++)
+            {
+                field += (polygon[j, 0] + polygon[i, 0]) * (polygon[j, 1] - polygon[i, 1]);
+                j = i;
+            }
+            field /= 2;
+            return Math.Abs(field);
         }
 
         private static bool isPointInsidePolygon(double[,] polygon, double[] point)
