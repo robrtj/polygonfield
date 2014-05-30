@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using RedBlackCS;
+using System.IO;
+using System.Diagnostics;
 
 namespace polygonfield
 {
@@ -11,95 +13,122 @@ namespace polygonfield
     {
         static void Main(string[] args)
         {
-            string[] lines = null;
-            if (args.Length < 2)
+            string[] filePaths = Directory.GetFiles(@"..\..\..\tests\");
+            System.IO.StreamWriter file = new System.IO.StreamWriter("tests.out");
+
+            foreach (string filename in filePaths)
             {
-                Console.WriteLine("Not enough parameters. Define files paths.");
-                return;
-            }
+                Stopwatch stopWatch = new Stopwatch();
 
-            try
-            {
-                lines = System.IO.File.ReadAllLines(@args[0]);
-            }
-            catch
-            {
-                Console.WriteLine("Could not read from file");
-                return;
-            }
+                string[] lines = null;
 
-            string[] spoint = lines[0].Split(' ');
-            double[] point = new double[2];
-            point[0] = Convert.ToDouble(spoint[0]);
-            point[1] = Convert.ToDouble(spoint[1]);
-
-            int n = Convert.ToInt32(lines[1]);
-
-            double[,] polygon = new double[n, 2];
-
-            double xMax = double.MinValue;
-            
-            int ommited = 0;
-
-            for (int i = 0; i < n; i++)
-            {
-                spoint = lines[i + 2].Split(' ');
-                double x = Convert.ToDouble(spoint[0]);
-                double y = Convert.ToDouble(spoint[1]);
-                int position = i - ommited;
-                //sprawdzenie, czy nowy punkt nie jest współliniowy z poprzednimi dwoma, jeśli tak, to zmniejszamy liczbę odcinków i poprzedni punkt zastępunjemy obecnym
-                if (position > 1 && ((polygon[position - 1, 0] - polygon[position - 2, 0]) * (y - polygon[position - 2, 1]) - (x - polygon[position - 2, 0]) * (polygon[position - 1, 1] - polygon[position - 2, 1])) == 0)
+                try
                 {
-                    polygon[position - 1, 0] = x;
-                    polygon[position - 1, 1] = y;
-                    ommited++;
+                    lines = System.IO.File.ReadAllLines(filename);
+                }
+                catch
+                {
+                    Console.WriteLine("Could not read from file");
+                    return;
+                }
+
+                string[] spoint = lines[0].Split(' ');
+                double[] point = new double[2];
+                point[0] = Convert.ToDouble(spoint[0]);
+                point[1] = Convert.ToDouble(spoint[1]);
+
+                int n = Convert.ToInt32(lines[1]);
+
+                double[,] polygon = new double[n, 2];
+
+                double xMax = double.MinValue;
+
+                int ommited = 0;
+
+                for (int i = 0; i < n; i++)
+                {
+                    spoint = lines[i + 2].Split(' ');
+                    double x = Convert.ToDouble(spoint[0]);
+                    double y = Convert.ToDouble(spoint[1]);
+                    int position = i - ommited;
+                    //sprawdzenie, czy nowy punkt nie jest współliniowy z poprzednimi dwoma, jeśli tak, to zmniejszamy liczbę odcinków i poprzedni punkt zastępunjemy obecnym
+                    if (position > 1 && ((polygon[position - 1, 0] - polygon[position - 2, 0]) * (y - polygon[position - 2, 1]) - (x - polygon[position - 2, 0]) * (polygon[position - 1, 1] - polygon[position - 2, 1])) == 0)
+                    {
+                        polygon[position - 1, 0] = x;
+                        polygon[position - 1, 1] = y;
+                        ommited++;
+                    }
+                    else
+                    {
+                        polygon[position, 0] = x;
+                        polygon[position, 1] = y;
+                    }
+                    if (xMax < x)
+                    {
+                        xMax = x;
+                    }
+                }
+                n -= ommited;
+                xMax += 0.1d;
+                if (n < 3)
+                {
+                    Console.WriteLine("Polygon must consist of minimum 3 nonlinear points!");
+                    return;
+                }
+
+                file.Write(filename + ";");
+                Console.WriteLine(filename);
+
+                stopWatch.Start();
+                bool b = isPolygonSimple(polygon, n);
+                stopWatch.Stop();
+                if (b)
+                {
+                    file.Write("PROSTY;");
+                    Console.WriteLine("PROSTY");
                 }
                 else
                 {
-                    polygon[position, 0] = x;
-                    polygon[position, 1] = y;
+                    file.Write("NIE JEST PROSTY;");
+                    Console.WriteLine("NIE JEST PROSTY");
                 }
-                if (xMax < x)
+                TimeSpan ts = stopWatch.Elapsed;
+                string elapsedTime = String.Format("t={0:00}.{1:000}", ts.Seconds, ts.Milliseconds);
+                file.Write(elapsedTime + ";");
+                Console.WriteLine(elapsedTime);
+
+                stopWatch = new Stopwatch();
+                stopWatch.Start();
+                double field = polygonField(polygon, n);
+                stopWatch.Stop();
+                file.Write(field + ";");
+                Console.WriteLine(field);
+                ts = stopWatch.Elapsed;
+                elapsedTime = String.Format("t={0:00}.{1:000}", ts.Seconds, ts.Milliseconds);
+                file.Write(elapsedTime + ";");
+                Console.WriteLine(elapsedTime);
+
+                stopWatch = new Stopwatch();
+                stopWatch.Start();
+                b = isPointInsidePolygon(polygon, point, xMax, n);
+                stopWatch.Stop();
+                if (b)
                 {
-                    xMax = x;
+                    file.Write("WEWNĄTRZ");
+                    Console.WriteLine("WEWNĄTRZ");
                 }
-            }
-            n -= ommited;
-            xMax += 0.1d;
-            if (n < 3)
-            {
-                Console.WriteLine("Polygon must consist of minimum 3 nonlinear points!");
-                return;
-            }
+                else
+                {
+                    file.Write("NA ZEWNĄTRZ");
+                    Console.WriteLine("NA ZEWNĄTRZ");
+                }
+                ts = stopWatch.Elapsed;
+                elapsedTime = String.Format("t={0:00}.{1:000}", ts.Seconds, ts.Milliseconds);
+                file.Write(elapsedTime + ";");
+                Console.WriteLine(elapsedTime);
 
-            System.IO.StreamWriter file = new System.IO.StreamWriter(args[1]);
+                file.WriteLine();
 
-            bool b = isPolygonSimple(polygon, n);
-            if (b)
-            {
-                file.WriteLine("PROSTY");
-                Console.WriteLine("PROSTY");
-            }
-            else
-            {
-                file.WriteLine("NIE JEST PROSTY");
-                Console.WriteLine("NIE JEST PROSTY");
-            }
-
-            double field = polygonField(polygon, n);
-            file.WriteLine(field);
-            Console.WriteLine(field);
-
-            b = isPointInsidePolygon(polygon, point, xMax, n);
-            if (b)
-            {
-                file.WriteLine("WEWNĄTRZ");
-                Console.WriteLine("WEWNĄTRZ");
-            }
-            else
-            {
-                file.WriteLine("NA ZEWNĄTRZ");
-                Console.WriteLine("NA ZEWNĄTRZ");
             }
 
             file.Close();
@@ -275,7 +304,7 @@ namespace polygonfield
                 }
 
             }
-            
+
             public int CompareTo(Edge other)
             {
                 if (this.Equals(other)) return 0;
